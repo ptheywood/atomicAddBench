@@ -6,8 +6,10 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "time.h"
+#include <typeinfo>
 
-
+#define VERBOSE 0
+#define INTEGER_SCALE_FACTOR 100
 
 static void HandleError(const char *file, int line, cudaError_t status = cudaGetLastError()) {
 	if (status != cudaSuccess || (status = cudaGetLastError()) != cudaSuccess)
@@ -25,8 +27,8 @@ static void HandleError(const char *file, int line, cudaError_t status = cudaGet
 #define CUDA_CALL( err ) (HandleError(__FILE__, __LINE__ , err))
 #define CUDA_CHECK() (HandleError(__FILE__, __LINE__))
 
-
-__global__ void atomicAdd_test(unsigned int numInputs, const float * __restrict__ d_inputData, float * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+template <typename T, typename U>
+__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, T * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
 	unsigned int start_time = 0;
 	unsigned int stop_time = 0;
@@ -41,55 +43,141 @@ __global__ void atomicAdd_test(unsigned int numInputs, const float * __restrict_
 	}
 }
 
-void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsigned long long int seed){
-	fprintf(stdout, "Running %d iteration\n", numIterations);
-	fflush(stdout);
+template <typename U>
+__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int start_time = 0;
+	unsigned int stop_time = 0;
 
-	float * h_accumulator = (float *)malloc(1 * sizeof(float));
-	float * h_inputData = (float*)malloc(numInputs * sizeof(float)); //@todo - unneeded?
+	if(tid < numInputs){
+		start_time = clock();
+		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
+		stop_time = clock();
 
-	unsigned int * h_start = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
-	unsigned int * h_stop = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
+		d_start[tid] = start_time;
+		d_stop[tid] = stop_time;
+	}
+}
 
+template <typename U>
+__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, unsigned int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int start_time = 0;
+	unsigned int stop_time = 0;
 
-	float * d_accumulator = NULL;
-	float * d_inputData = NULL;
-	
-	unsigned int * d_start = NULL;
-	unsigned int * d_stop = NULL;
+	if(tid < numInputs){
+		start_time = clock();
+		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
+		stop_time = clock();
+
+		d_start[tid] = start_time;
+		d_stop[tid] = stop_time;
+	}
+}
+
+void generateInputData(unsigned int numInputs, unsigned long long int seed, float * d_data){
 
 	curandGenerator_t rng = NULL;
 
+	// Create RNG, seed RNG and populate device array.
+	curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_DEFAULT); // @todo - curand error check
+	curandSetPseudoRandomGeneratorSeed(rng, seed); // @todo - curand error check
+
+	curandGenerateUniform(rng, d_data, numInputs); // @todo - curand error check
+	
+	// Cleanup rng
+	curandDestroyGenerator(rng); // @todo - curand error check
+
+}
+
+void generateInputData(unsigned int numInputs, unsigned long long int seed, double * d_data){
+
+	curandGenerator_t rng = NULL;
+
+	// Create RNG, seed RNG and populate device array.
+	curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_DEFAULT); // @todo - curand error check
+	curandSetPseudoRandomGeneratorSeed(rng, seed); // @todo - curand error check
+
+	curandGenerateUniformDouble(rng, d_data, numInputs); // @todo - curand error check
+	
+	// Cleanup rng
+	curandDestroyGenerator(rng); // @todo - curand error check
+
+}
+
+
+void printAccumulatorTotal(int v){
+	fprintf(stdout, "Accumulator: %d\n", v);
+	fflush(stdout);
+}
+void printAccumulatorTotal(long long int v){
+	fprintf(stdout, "Accumulator: %ll\n", v);
+	fflush(stdout);
+}
+void printAccumulatorTotal(unsigned int v){
+	fprintf(stdout, "Accumulator: %u\n", v);
+	fflush(stdout);
+}
+void printAccumulatorTotal(unsigned long long int v){
+	fprintf(stdout, "Accumulator: %llu\n", v);
+	fflush(stdout);
+}
+void printAccumulatorTotal(float v){
+	fprintf(stdout, "Accumulator: %f\n", v);
+	fflush(stdout);
+}
+void printAccumulatorTotal(double v){
+	fprintf(stdout, "Accumulator: %f\n", v);
+	fflush(stdout);
+}
+
+template <typename T, typename U>
+void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsigned long long int seed){
+
+	T *h_accumulator = (T*)malloc(1 * sizeof(T));
+	U *h_inputData = (U*)malloc(numInputs * sizeof(U)); //@todo - unneeded?
+
+	T *d_accumulator = NULL;
+	U *d_inputData = NULL;
+
+	unsigned int *h_start = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
+	unsigned int *h_stop = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
+	
+	unsigned int *d_start = NULL;
+	unsigned int *d_stop = NULL;
+
+	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d iterations\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numIterations);
+	fflush(stdout);
 
 	// Allocate device data.
-	CUDA_CALL(cudaMalloc((void**)&d_accumulator, 1 * sizeof(float)));
-	CUDA_CALL(cudaMalloc((void**)&d_inputData, numInputs * sizeof(float)));
+	CUDA_CALL(cudaMalloc((void**)&d_accumulator, 1 * sizeof(T)));
+	CUDA_CALL(cudaMalloc((void**)&d_inputData, numInputs * sizeof(U)));
 	CUDA_CALL(cudaMalloc((void**)&d_start, numInputs * sizeof(unsigned int)));
 	CUDA_CALL(cudaMalloc((void**)&d_stop, numInputs * sizeof(unsigned int)));
 
 
 	// Initialise accumulator
-	(*h_accumulator) = 0.0f;
-	CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(float), cudaMemcpyHostToDevice));
+	(*h_accumulator) = (T)0.0;
+	CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(T), cudaMemcpyHostToDevice));
 
-	// Create RNG, seed RNG and populate device array.
-	curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_DEFAULT); // @todo - curand error check
-	curandSetPseudoRandomGeneratorSeed(rng, seed); // @todo - curand error check
-	curandGenerateUniform(rng, d_inputData, numInputs); // @todo - curand error check
+	// Generate random data
+	generateInputData(numInputs, seed, d_inputData);
 
 	// Accumulate values via kernel.
 	int blockSize, minGridSize, gridSize;
-	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, atomicAdd_test, 0, numInputs));
+	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, atomicAdd_test<T, U>, 0, numInputs));
 	gridSize = (numInputs + blockSize - 1) / blockSize;
 	atomicAdd_test<<<gridSize, blockSize>>>(numInputs, d_inputData, d_accumulator, d_start, d_stop);
 	CUDA_CHECK();
 
 	// Copy Data from Device to Host
-	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(float), cudaMemcpyDeviceToHost));
-	//CUDA_CALL(cudaMemcpy(h_inputData, d_inputData, numInputs * sizeof(float), cudaMemcpyDeviceToHost)); //@todo - remove?
+	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
+	//CUDA_CALL(cudaMemcpy(h_inputData, d_inputData, numInputs * sizeof(U), cudaMemcpyDeviceToHost)); //@todo - remove?
 	CUDA_CALL(cudaMemcpy(h_start, d_start, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 	CUDA_CALL(cudaMemcpy(h_stop, d_stop, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 	
+#if defined(VERBOSE) && VERBOSE > 0
+
 	// Find the minimum start time.
 	unsigned int min = h_start[0];
 	for(unsigned int i = 0; i < numInputs; i++){
@@ -104,11 +192,10 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 		fprintf(stdout, "%d, %d, %u, %u\n", i % 32, i / 32, h_start[i] - min, h_stop[i] - min); 
 	}
 	fflush(stdout);
+#endif 
 
 	// Print output messages
-
-	fprintf(stdout, "Accumulator: %f\n", h_accumulator[0]);
-	fflush(stdout);
+	printAccumulatorTotal(h_accumulator[0]);
 
 	// Free device data
 	CUDA_CALL(cudaFree(d_accumulator));
@@ -128,6 +215,10 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 
 int main()
 {
-	runAtomicAddTest(1, 128, 0);
+	runAtomicAddTest<float, float>(1, 128, 0);
+	runAtomicAddTest<int, float>(1, 128, 0);
+	runAtomicAddTest<unsigned int, double>(1, 128, 0);
+
+
     return 0;
 }
