@@ -27,6 +27,20 @@ static void HandleError(const char *file, int line, cudaError_t status = cudaGet
 #define CUDA_CALL( err ) (HandleError(__FILE__, __LINE__ , err))
 #define CUDA_CHECK() (HandleError(__FILE__, __LINE__))
 
+
+__device__ double atomicAddFP64(double* address, double val)
+{
+	// https://devtalk.nvidia.com/default/topic/529341/speed-of-double-precision-cuda-atomic-operations-on-kepler-k20/
+	unsigned long long int* address_as_ull =
+		(unsigned long long int*)address;
+	unsigned long long int old = *address_as_ull, assumed;
+	do {
+		assumed = old;
+		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+	} while (assumed != old);
+	return __longlong_as_double(old);
+}
+
 template <typename T, typename U>
 __global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, T * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -68,6 +82,26 @@ __global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_
 	if(tid < numInputs){
 		start_time = clock();
 		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
+		stop_time = clock();
+
+		d_start[tid] = start_time;
+		d_stop[tid] = stop_time;
+	}
+}
+
+template <typename U>
+__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, double * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int start_time = 0;
+	unsigned int stop_time = 0;
+
+	if(tid < numInputs){
+		start_time = clock();
+#if CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
+		atomicAdd(d_accumulator, d_inputData[tid]);
+#else 
+		atomicAddFP64(d_accumulator, d_inputData[tid]);
+#endif
 		stop_time = clock();
 
 		d_start[tid] = start_time;
@@ -216,6 +250,7 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 int main()
 {
 	runAtomicAddTest<float, float>(1, 128, 0);
+	runAtomicAddTest<double, double>(1, 128, 0);
 	runAtomicAddTest<int, float>(1, 128, 0);
 	runAtomicAddTest<unsigned int, double>(1, 128, 0);
 
