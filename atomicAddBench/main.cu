@@ -41,8 +41,38 @@ __device__ double atomicAddFP64(double* address, double val)
 	return __longlong_as_double(old);
 }
 
-template <typename T, typename U>
-__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, T * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+
+__global__ void atomicAdd_test(unsigned int numInputs, float * d_inputData, int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int start_time = 0;
+	unsigned int stop_time = 0;
+
+	if(tid < numInputs){
+		start_time = clock();
+		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
+		stop_time = clock();
+
+		d_start[tid] = start_time;
+		d_stop[tid] = stop_time;
+	}
+}
+
+__global__ void atomicAdd_test(unsigned int numInputs, float * d_inputData, unsigned int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
+	unsigned int start_time = 0;
+	unsigned int stop_time = 0;
+
+	if(tid < numInputs){
+		start_time = clock();
+		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
+		stop_time = clock();
+
+		d_start[tid] = start_time;
+		d_stop[tid] = stop_time;
+	}
+}
+
+__global__ void atomicAdd_test(unsigned int numInputs, float * d_inputData, float * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
 	unsigned int start_time = 0;
 	unsigned int stop_time = 0;
@@ -57,47 +87,14 @@ __global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_
 	}
 }
 
-template <typename U>
-__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+__global__ void atomicAdd_test(unsigned int numInputs, double * d_inputData, double * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
 	unsigned int start_time = 0;
 	unsigned int stop_time = 0;
 
 	if(tid < numInputs){
 		start_time = clock();
-		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
-	}
-}
-
-template <typename U>
-__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, unsigned int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
-	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
-
-	if(tid < numInputs){
-		start_time = clock();
-		atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
-	}
-}
-
-template <typename U>
-__global__ void atomicAdd_test(unsigned int numInputs, const U * __restrict__ d_inputData, double * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
-	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
-
-	if(tid < numInputs){
-		start_time = clock();
-#if CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
+#if defined(__CUDA__ARCH__) && CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
 		atomicAdd(d_accumulator, d_inputData[tid]);
 #else 
 		atomicAddFP64(d_accumulator, d_inputData[tid]);
@@ -197,11 +194,14 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 	// Generate random data
 	generateInputData(numInputs, seed, d_inputData);
 
+	// Get a function pointer to the kernel for this data type.
+	void (*kernel)(unsigned int, U*, T*, unsigned int*, unsigned int*) = atomicAdd_test;
+
 	// Accumulate values via kernel.
 	int blockSize, minGridSize, gridSize;
-	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, atomicAdd_test<T, U>, 0, numInputs));
+	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numInputs));
 	gridSize = (numInputs + blockSize - 1) / blockSize;
-	atomicAdd_test<<<gridSize, blockSize>>>(numInputs, d_inputData, d_accumulator, d_start, d_stop);
+	kernel<<<gridSize, blockSize>>>(numInputs, d_inputData, d_accumulator, d_start, d_stop);
 	CUDA_CHECK();
 
 	// Copy Data from Device to Host
@@ -250,9 +250,9 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 int main()
 {
 	runAtomicAddTest<float, float>(1, 128, 0);
-	runAtomicAddTest<double, double>(1, 128, 0);
-	runAtomicAddTest<int, float>(1, 128, 0);
-	runAtomicAddTest<unsigned int, double>(1, 128, 0);
+	//runAtomicAddTest<double, double>(1, 128, 0);
+	//runAtomicAddTest<int, float>(1, 128, 0);
+	//runAtomicAddTest<long long int, float>(1, 128, 0);
 
 
     return 0;
