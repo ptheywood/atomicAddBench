@@ -11,6 +11,22 @@
 #define VERBOSE 0
 #define INTEGER_SCALE_FACTOR 100
 
+#define DEFAULT_NUM_ITERATIONS 1
+#define DEFAULT_NUM_ELEMENTS 128
+#define DEFAULT_SEED 0
+
+#ifdef WIN32
+#define EXE_NAME "atomicAddBench.exe"
+#else
+#define EXE_NAME "atomicAddBench"
+#endif
+
+#define MIN_ARGS 1
+#define MAX_ARGS 4
+#define ARG_ITERATIONS 1
+#define ARG_ELEMENTS 2
+#define ARG_SEED 3
+
 static void HandleError(const char *file, int line, cudaError_t status = cudaGetLastError()) {
 	if (status != cudaSuccess || (status = cudaGetLastError()) != cudaSuccess)
 	{
@@ -177,7 +193,7 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 	unsigned int *d_start = NULL;
 	unsigned int *d_stop = NULL;
 
-	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d iterations\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numIterations);
+	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d threads, %d iterations, seed %d\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numInputs, numIterations, seed);
 	fflush(stdout);
 
 	// Allocate device data.
@@ -245,14 +261,63 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 
 	// Reset the device for profiler output.
 	CUDA_CALL(cudaDeviceReset());
+
+	fprintf(stdout, "\n");
+	fflush(stdout);
 }
 
-int main()
+
+void checkUsage(
+	int argc,
+	char *argv[],
+	unsigned int *numIterations,
+	unsigned int *numElements,
+	unsigned long long int *seed
+	){
+		// If an incorrect number of arguments is specified, print usage.
+		if (argc < MIN_ARGS || argc > MAX_ARGS){
+			const char *usage = "Usage: \n"
+				"%s <num_iterations> <num_elements> <seed>\n"
+				"\n"
+				"    <num_iterations> number of atomicAdd iterations to repeat (default %u)\n"
+				"    <num_elements>   number of threads to launch (default %u)\n"
+				"    <seed>           seed for RNG (default %llu)\n"
+				"\n";
+			fprintf(stdout, usage, EXE_NAME, DEFAULT_NUM_ITERATIONS, DEFAULT_NUM_ELEMENTS, DEFAULT_SEED);
+			fflush(stdout);
+			exit(EXIT_FAILURE);
+		}
+
+		// If there are more than 1 arg (the filename)5
+		if(argc > MIN_ARGS){
+			// Extract the number of iterations
+			(*numIterations) = (unsigned int) atoi(argv[ARG_ITERATIONS]);
+			// Extract the number of elements
+			(*numElements) = (unsigned int) atoi(argv[ARG_ELEMENTS]);
+			// Extract the seed
+			(*seed) = strtoull(argv[ARG_SEED], nullptr, 0);
+		}
+
+#if defined(VERBOSE) && VERBOSE > 0
+		printf("iterations: %u\n", numIterations);
+		printf("threads:    %u\n", numElements);
+		printf("seed:       %llu\n", seed);
+#endif
+
+}
+
+int main(int argc, char *argv[])
 {
-	runAtomicAddTest<float, float>(1, 128, 0);
-	//runAtomicAddTest<double, double>(1, 128, 0);
-	//runAtomicAddTest<int, float>(1, 128, 0);
-	//runAtomicAddTest<long long int, float>(1, 128, 0);
+	unsigned int numIterations = DEFAULT_NUM_ITERATIONS;
+	unsigned int numElements = DEFAULT_NUM_ELEMENTS;
+	unsigned long long int seed = DEFAULT_SEED;
+
+	checkUsage(argc, argv, &numIterations, &numElements, &seed);
+
+	runAtomicAddTest<float, float>(numIterations, numElements, seed);
+	//runAtomicAddTest<double, double>(numIterations, numElements, seed);
+	//runAtomicAddTest<int, float>(numIterations, numElements, seed);
+	//runAtomicAddTest<long long int, float>(numIterations, numElements, seed);
 
 
     return 0;
