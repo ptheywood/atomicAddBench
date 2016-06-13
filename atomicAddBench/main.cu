@@ -94,7 +94,7 @@ __global__ void atomicAdd_test(unsigned int numInputs, double * d_inputData, dou
 
 	if(tid < numInputs){
 		start_time = clock();
-#if defined(__CUDA__ARCH__) && CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
+#if CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
 		atomicAdd(d_accumulator, d_inputData[tid]);
 #else 
 		atomicAddFP64(d_accumulator, d_inputData[tid]);
