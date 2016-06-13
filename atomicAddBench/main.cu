@@ -187,14 +187,14 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 	T *d_accumulator = NULL;
 	U *d_inputData = NULL;
 
+	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d threads %d iterations seed %d\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numInputs, numIterations, seed);
+	fflush(stdout);
+
 	unsigned int *h_start = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
 	unsigned int *h_stop = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
 	
 	unsigned int *d_start = NULL;
 	unsigned int *d_stop = NULL;
-
-	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d threads, %d iterations, seed %d\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numInputs, numIterations, seed);
-	fflush(stdout);
 
 	// Allocate device data.
 	CUDA_CALL(cudaMalloc((void**)&d_accumulator, 1 * sizeof(T)));
