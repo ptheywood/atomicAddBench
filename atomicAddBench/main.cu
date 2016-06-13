@@ -196,6 +196,12 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 	unsigned int *d_start = NULL;
 	unsigned int *d_stop = NULL;
 
+	// Create cudaEvents for timing.
+	cudaEvent_t start, stop;
+	float milliseconds = 0;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
 	// Allocate device data.
 	CUDA_CALL(cudaMalloc((void**)&d_accumulator, 1 * sizeof(T)));
 	CUDA_CALL(cudaMalloc((void**)&d_inputData, numInputs * sizeof(U)));
@@ -217,8 +223,11 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 	int blockSize, minGridSize, gridSize;
 	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numInputs));
 	gridSize = (numInputs + blockSize - 1) / blockSize;
+
+	CUDA_CALL(cudaEventRecord(start));
 	kernel<<<gridSize, blockSize>>>(numInputs, d_inputData, d_accumulator, d_start, d_stop);
 	CUDA_CHECK();
+	CUDA_CALL(cudaEventRecord(stop));
 
 	// Copy Data from Device to Host
 	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
@@ -226,6 +235,9 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 	CUDA_CALL(cudaMemcpy(h_start, d_start, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 	CUDA_CALL(cudaMemcpy(h_stop, d_stop, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 	
+	CUDA_CALL(cudaEventSynchronize(stop));
+	CUDA_CALL(cudaEventElapsedTime(&milliseconds, start, stop));
+
 #if defined(VERBOSE) && VERBOSE > 0
 
 	// Find the minimum start time.
@@ -246,7 +258,11 @@ void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsign
 
 	// Print output messages
 	printAccumulatorTotal(h_accumulator[0]);
+	fprintf(stdout, "Time: %f milliseconds\n");
 
+	// Destroy events
+	CUDA_CALL(cudaEventDestroy(start));
+	CUDA_CALL(cudaEventDestroy(stop));
 	// Free device data
 	CUDA_CALL(cudaFree(d_accumulator));
 	CUDA_CALL(cudaFree(d_inputData));
