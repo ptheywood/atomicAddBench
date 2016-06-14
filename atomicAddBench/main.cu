@@ -46,7 +46,7 @@ static void HandleError(const char *file, int line, cudaError_t status = cudaGet
 #define CUDA_CHECK() (HandleError(__FILE__, __LINE__))
 
 
-__device__ double atomicAddFP64(double* address, double val)
+__device__ double atomicAddViaCAS(double* address, double val)
 {
 	// https://devtalk.nvidia.com/default/topic/529341/speed-of-double-precision-cuda-atomic-operations-on-kepler-k20/
 	unsigned long long int* address_as_ull =
@@ -59,99 +59,63 @@ __device__ double atomicAddFP64(double* address, double val)
 	return __longlong_as_double(old);
 }
 
+/*
+__device__ double atomicAddViaCAS(float* address, float val)
+{
+	//@todo
+	unsigned int* address_as_u = (unsigned int*)address;
+	unsigned int old = *address_as_u;
+	unsigned int assumed;
+	do {
+		assumed = old;
+		old = atomicCAS(address_as_u, assumed, reinterpret_cast<unsigned int>(val + reinterpret_cast<float>(assumed)));
+	} while (assumed != old);
+	return reinterpret_cast<float>(old);
+}
+*/
 
-__global__ void atomicAdd_test(unsigned int numIterations, unsigned int numInputs, float * d_inputData, float * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+__global__ void atomicAdd_intrinsic(unsigned int numIterations, unsigned int numInputs, float * d_inputData, float * d_accumulator){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
 
 	if (tid < numInputs){
-		start_time = clock();
 		for (int iteration = 0; iteration < numIterations; iteration++){
-			atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
-		}
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
-	}
-}
-
-__global__ void atomicAdd_test(unsigned int numIterations, unsigned int numInputs, double * d_inputData, float * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
-	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
-
-	if(tid < numInputs){
-		start_time = clock();
-		for (int iteration = 0; iteration < numIterations; iteration++){
-			atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
-		}
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
-	}
-}
-
-__global__ void atomicAdd_test(unsigned int numIterations, unsigned int numInputs, float * d_inputData, unsigned int * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
-	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
-
-	if(tid < numInputs){
-		start_time = clock();
-		for (int iteration = 0; iteration < numIterations; iteration++){
-			atomicAdd(d_accumulator, d_inputData[tid] * INTEGER_SCALE_FACTOR);
-		}
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
-	}
-}
-
-__global__ void atomicAdd_test(unsigned int numIterations, unsigned int numInputs, double * d_inputData, double * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
-	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
-
-	if(tid < numInputs){
-		start_time = clock();
-		for (int iteration = 0; iteration < numIterations; iteration++){
-//#if CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
 			atomicAdd(d_accumulator, d_inputData[tid]);
-//#else 
-			//atomicAddFP64(d_accumulator, d_inputData[tid]);
-//#endif
 		}
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
 	}
 }
 
-__global__ void atomicAdd_test2(unsigned int numIterations, unsigned int numInputs, double * d_inputData, double * d_accumulator, unsigned int * d_start, unsigned int * d_stop){
+__global__ void atomicAdd_intrinsic(unsigned int numIterations, unsigned int numInputs, float * d_inputData, double * d_accumulator){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
-	unsigned int start_time = 0;
-	unsigned int stop_time = 0;
+
+	if(tid < numInputs){
+		for (int iteration = 0; iteration < numIterations; iteration++){
+			atomicAdd(d_accumulator, d_inputData[tid]);
+		}
+	}
+}
+
+__global__ void atomicAdd_cas(unsigned int numIterations, unsigned int numInputs, float * d_inputData, float * d_accumulator){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
 
 	if (tid < numInputs){
-		start_time = clock();
 		for (int iteration = 0; iteration < numIterations; iteration++){
-			//#if CUDA_VERSION >= 8000 && __CUDA_ARCH__ >= 600
-			//atomicAdd(d_accumulator, d_inputData[tid]);
-			//#else 
-			atomicAddFP64(d_accumulator, d_inputData[tid]);
-			//#endif
+			//@todo
 		}
-		stop_time = clock();
-
-		d_start[tid] = start_time;
-		d_stop[tid] = stop_time;
 	}
 }
+
+
+__global__ void atomicAdd_cas(unsigned int numIterations, unsigned int numInputs, float * d_inputData, double * d_accumulator){
+	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
+
+	if (tid < numInputs){
+		for (int iteration = 0; iteration < numIterations; iteration++){
+			atomicAddViaCAS(d_accumulator, (double)d_inputData[tid]);
+		}
+	}
+}
+
+
 
 void generateInputData(unsigned int numInputs, unsigned long long int seed, float * d_data){
 
@@ -168,259 +132,24 @@ void generateInputData(unsigned int numInputs, unsigned long long int seed, floa
 
 }
 
-void generateInputData(unsigned int numInputs, unsigned long long int seed, double * d_data){
-
-	curandGenerator_t rng = NULL;
-
-	// Create RNG, seed RNG and populate device array.
-	curandCreateGenerator(&rng, CURAND_RNG_PSEUDO_DEFAULT); // @todo - curand error check
-	curandSetPseudoRandomGeneratorSeed(rng, seed); // @todo - curand error check
-
-	curandGenerateUniformDouble(rng, d_data, numInputs); // @todo - curand error check
-	
-	// Cleanup rng
-	curandDestroyGenerator(rng); // @todo - curand error check
-
+void fprintAccumulatorTotal(FILE* f, int v){
+	fprintf(f, "Accumulator: %d\n", v);
 }
-
-
-void printAccumulatorTotal(int v){
-	fprintf(stdout, "Accumulator: %d\n", v);
-	fflush(stdout);
+void fprintAccumulatorTotal(FILE* f, long long int v){
+	fprintf(f, "Accumulator: %ll\n", v);
 }
-void printAccumulatorTotal(long long int v){
-	fprintf(stdout, "Accumulator: %ll\n", v);
-	fflush(stdout);
+void fprintAccumulatorTotal(FILE* f, unsigned int v){
+	fprintf(f, "Accumulator: %u\n", v);
 }
-void printAccumulatorTotal(unsigned int v){
-	fprintf(stdout, "Accumulator: %u\n", v);
-	fflush(stdout);
+void fprintAccumulatorTotal(FILE* f, unsigned long long int v){
+	fprintf(f, "Accumulator: %llu\n", v);
 }
-void printAccumulatorTotal(unsigned long long int v){
-	fprintf(stdout, "Accumulator: %llu\n", v);
-	fflush(stdout);
+void fprintAccumulatorTotal(FILE* f, float v){
+	fprintf(f, "Accumulator: %f\n", v);
 }
-void printAccumulatorTotal(float v){
-	fprintf(stdout, "Accumulator: %f\n", v);
-	fflush(stdout);
+void fprintAccumulatorTotal(FILE* f, double v){
+	fprintf(f, "Accumulator: %f\n", v);
 }
-void printAccumulatorTotal(double v){
-	fprintf(stdout, "Accumulator: %f\n", v);
-	fflush(stdout);
-}
-
-template <typename T, typename U>
-void runAtomicAddTest(unsigned int numIterations, unsigned int numInputs, unsigned long long int seed){
-
-	T *h_accumulator = (T*)malloc(1 * sizeof(T));
-	U *h_inputData = (U*)malloc(numInputs * sizeof(U)); //@todo - unneeded?
-
-	T *d_accumulator = NULL;
-	U *d_inputData = NULL;
-
-	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d threads %d iterations seed %d\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numInputs, numIterations, seed);
-	fflush(stdout);
-
-	unsigned int *h_start = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
-	unsigned int *h_stop = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
-	
-	unsigned int *d_start = NULL;
-	unsigned int *d_stop = NULL;
-
-	// Create cudaEvents for timing.
-	cudaEvent_t start, stop;
-	float milliseconds = 0;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-
-	// Allocate device data.
-	CUDA_CALL(cudaMalloc((void**)&d_accumulator, 1 * sizeof(T)));
-	CUDA_CALL(cudaMalloc((void**)&d_inputData, numInputs * sizeof(U)));
-	CUDA_CALL(cudaMalloc((void**)&d_start, numInputs * sizeof(unsigned int)));
-	CUDA_CALL(cudaMalloc((void**)&d_stop, numInputs * sizeof(unsigned int)));
-
-
-	// Initialise accumulator
-	(*h_accumulator) = (T)0.0;
-	CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(T), cudaMemcpyHostToDevice));
-
-	// Generate random data
-	generateInputData(numInputs, seed, d_inputData);
-
-	// Get a function pointer to the kernel for this data type.
-	void (*kernel)(unsigned int, unsigned int, U*, T*, unsigned int*, unsigned int*) = atomicAdd_test;
-
-	// Accumulate values via kernel.
-	int blockSize, minGridSize, gridSize;
-	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numInputs));
-	gridSize = (numInputs + blockSize - 1) / blockSize;
-
-	CUDA_CALL(cudaEventRecord(start));
-	kernel<<<gridSize, blockSize>>>(numIterations, numInputs, d_inputData, d_accumulator, d_start, d_stop);
-	CUDA_CHECK();
-	cudaDeviceSynchronize();
-	CUDA_CALL(cudaEventRecord(stop));
-
-	// Copy Data from Device to Host
-	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
-	//CUDA_CALL(cudaMemcpy(h_inputData, d_inputData, numInputs * sizeof(U), cudaMemcpyDeviceToHost)); //@todo - remove?
-	CUDA_CALL(cudaMemcpy(h_start, d_start, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	CUDA_CALL(cudaMemcpy(h_stop, d_stop, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	
-	CUDA_CALL(cudaEventSynchronize(stop));
-	CUDA_CALL(cudaEventElapsedTime(&milliseconds, start, stop));
-
-#if defined(VERBOSE) && VERBOSE > 0
-
-	// Find the minimum start time.
-	unsigned int min = h_start[0];
-	for(unsigned int i = 0; i < numInputs; i++){
-		min = (h_start[i] < min) ? h_start[i] : min;
-	}
-
-	fprintf(stdout, "thread, warp, start, stop\n");
-	//for(unsigned int i = 0; i < numInputs; i++){
-	for (unsigned int i = 0; 128 < 32; i++){
-		if (i > 0 && i % 32 == 0){
-			fprintf(stdout, "---------------\n");
-			fprintf(stdout, "%d, %d, %u, %u\n", i % 32, i / 32, h_start[i] - min, h_stop[i] - min);
-		}
-	}
-	fflush(stdout);
-#endif 
-
-	// Print output messages
-	printAccumulatorTotal(h_accumulator[0]);
-	fprintf(stdout, "Time: %f milliseconds\n");
-
-	// Destroy events
-	CUDA_CALL(cudaEventDestroy(start));
-	CUDA_CALL(cudaEventDestroy(stop));
-	// Free device data
-	CUDA_CALL(cudaFree(d_accumulator));
-	CUDA_CALL(cudaFree(d_inputData));
-	CUDA_CALL(cudaFree(d_start));
-	CUDA_CALL(cudaFree(d_stop));
-
-	// Free host data
-	free(h_accumulator);
-	free(h_inputData);
-	free(h_start);
-	free(h_stop);
-
-	// Reset the device for profiler output.
-	CUDA_CALL(cudaDeviceReset());
-
-	fprintf(stdout, "\n");
-	fflush(stdout);
-}
-
-template <typename T, typename U>
-void runAtomicAddTest2(unsigned int numIterations, unsigned int numInputs, unsigned long long int seed){
-
-	T *h_accumulator = (T*)malloc(1 * sizeof(T));
-	U *h_inputData = (U*)malloc(numInputs * sizeof(U)); //@todo - unneeded?
-
-	T *d_accumulator = NULL;
-	U *d_inputData = NULL;
-
-	fprintf(stdout, "atomicAdd(%s) RNG(%s) %d threads %d iterations seed %d\n", typeid(*h_accumulator).name(), typeid(*h_inputData).name(), numInputs, numIterations, seed);
-	fflush(stdout);
-
-	unsigned int *h_start = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
-	unsigned int *h_stop = (unsigned int*)malloc(numInputs * sizeof(unsigned int));
-
-	unsigned int *d_start = NULL;
-	unsigned int *d_stop = NULL;
-
-	// Create cudaEvents for timing.
-	cudaEvent_t start, stop;
-	float milliseconds = 0;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-
-	// Allocate device data.
-	CUDA_CALL(cudaMalloc((void**)&d_accumulator, 1 * sizeof(T)));
-	CUDA_CALL(cudaMalloc((void**)&d_inputData, numInputs * sizeof(U)));
-	CUDA_CALL(cudaMalloc((void**)&d_start, numInputs * sizeof(unsigned int)));
-	CUDA_CALL(cudaMalloc((void**)&d_stop, numInputs * sizeof(unsigned int)));
-
-
-	// Initialise accumulator
-	(*h_accumulator) = (T)0.0;
-	CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(T), cudaMemcpyHostToDevice));
-
-	// Generate random data
-	generateInputData(numInputs, seed, d_inputData);
-
-	// Get a function pointer to the kernel for this data type.
-	void(*kernel)(unsigned int, unsigned int, U*, T*, unsigned int*, unsigned int*) = atomicAdd_test2;
-
-	// Accumulate values via kernel.
-	int blockSize, minGridSize, gridSize;
-	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numInputs));
-	gridSize = (numInputs + blockSize - 1) / blockSize;
-
-	CUDA_CALL(cudaEventRecord(start));
-	kernel << <gridSize, blockSize >> >(numIterations, numInputs, d_inputData, d_accumulator, d_start, d_stop);
-	CUDA_CHECK();
-	cudaDeviceSynchronize();
-	CUDA_CALL(cudaEventRecord(stop));
-
-	// Copy Data from Device to Host
-	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
-	//CUDA_CALL(cudaMemcpy(h_inputData, d_inputData, numInputs * sizeof(U), cudaMemcpyDeviceToHost)); //@todo - remove?
-	CUDA_CALL(cudaMemcpy(h_start, d_start, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	CUDA_CALL(cudaMemcpy(h_stop, d_stop, numInputs * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-
-	CUDA_CALL(cudaEventSynchronize(stop));
-	CUDA_CALL(cudaEventElapsedTime(&milliseconds, start, stop));
-
-#if defined(VERBOSE) && VERBOSE > 0
-
-	// Find the minimum start time.
-	unsigned int min = h_start[0];
-	for (unsigned int i = 0; i < numInputs; i++){
-		min = (h_start[i] < min) ? h_start[i] : min;
-	}
-
-	fprintf(stdout, "thread, warp, start, stop\n");
-	//for(unsigned int i = 0; i < numInputs; i++){
-	for (unsigned int i = 0; 128 < 32; i++){
-		if (i > 0 && i % 32 == 0){
-			fprintf(stdout, "---------------\n");
-			fprintf(stdout, "%d, %d, %u, %u\n", i % 32, i / 32, h_start[i] - min, h_stop[i] - min);
-		}
-	}
-	fflush(stdout);
-#endif 
-
-	// Print output messages
-	printAccumulatorTotal(h_accumulator[0]);
-	fprintf(stdout, "Time: %f milliseconds\n");
-
-	// Destroy events
-	CUDA_CALL(cudaEventDestroy(start));
-	CUDA_CALL(cudaEventDestroy(stop));
-	// Free device data
-	CUDA_CALL(cudaFree(d_accumulator));
-	CUDA_CALL(cudaFree(d_inputData));
-	CUDA_CALL(cudaFree(d_start));
-	CUDA_CALL(cudaFree(d_stop));
-
-	// Free host data
-	free(h_accumulator);
-	free(h_inputData);
-	free(h_start);
-	free(h_stop);
-
-	// Reset the device for profiler output.
-	CUDA_CALL(cudaDeviceReset());
-
-	fprintf(stdout, "\n");
-	fflush(stdout);
-}
-
 
 void checkUsage(
 	int argc,
@@ -444,10 +173,6 @@ void checkUsage(
 			exit(EXIT_FAILURE);
 		}
 
-		for (int i = 0; i < argc; i++){
-			printf("%d: %s\n", i, argv[i]);
-		}
-
 		// If there are more than 1 arg (the filename)5
 		if(argc > MIN_ARGS){
 			// Extract the number of iterations
@@ -463,11 +188,10 @@ void checkUsage(
 
 		}
 
-#if defined(VERBOSE) && VERBOSE > 0
-		printf("iterations: %u\n", numIterations);
-		printf("threads:    %u\n", numElements);
-		printf("seed:       %llu\n", seed);
-#endif
+		printf("iterations: %u\n", (*numIterations));
+		printf("threads:    %u\n", (*numElements));
+		printf("seed:       %llu\n", (*seed));
+
 
 }
 
@@ -498,7 +222,7 @@ void initDevice(unsigned int device){
 			status = cudaGetDeviceProperties(&props, device);
 			// If we have properties, print the device.
 			if (status == cudaSuccess){
-				fprintf(stdout, "Using device %d bus %d: %s tcc? %d\n", props.pciDeviceID, props.pciBusID, props.name, props.tccDriver);
+				fprintf(stdout, "Device: %s\n  pci %d\n  bus %d\n  tcc %d\n", props.name, props.pciDeviceID, props.pciBusID, props.tccDriver);
 			}
 		}
 		else {
@@ -514,6 +238,61 @@ void initDevice(unsigned int device){
 	}			
 }
 
+template <typename T>
+void test(unsigned int numIterations, unsigned int numElements, unsigned long long int seed, T *h_accumulator, T *d_accumulator, float *d_inputData, bool intrinsic){
+	
+	// Reset accumulator.
+	(*h_accumulator) = (T)0.0;
+	CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(T), cudaMemcpyHostToDevice));
+
+	// Create timing elements
+	cudaEvent_t start, stop;
+	float milliseconds = 0;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
+	// Get pointer to kernel
+
+	void(*kernel)(unsigned int, unsigned int, float*, T*);
+	
+	if (intrinsic){
+		kernel = atomicAdd_intrinsic;
+	}
+	else {
+		kernel = atomicAdd_cas;
+	}
+	
+	// Compute launch args and launch kernel
+	int blockSize, minGridSize, gridSize;
+	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numElements));
+	gridSize = (numElements + blockSize - 1) / blockSize;
+
+	// Accumulate values via kernel.
+
+	CUDA_CALL(cudaEventRecord(start));
+	kernel << <gridSize, blockSize >> >(numIterations, numElements, d_inputData, d_accumulator);
+	CUDA_CHECK();
+	cudaDeviceSynchronize();
+	CUDA_CALL(cudaEventRecord(stop));
+
+	// Output timing 
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&milliseconds, start, stop);
+
+	// Copy out results
+	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
+	if (intrinsic){
+		fprintf(stdout, "%s intrinsic %fms ", typeid(*h_accumulator).name(), milliseconds);
+	}
+	else {
+		fprintf(stdout, "%s atomicCAS %fms ", typeid(*h_accumulator).name(), milliseconds);
+
+	}
+	fprintAccumulatorTotal(stdout, h_accumulator[0]);
+	fflush(stdout);
+
+}
+
 int main(int argc, char *argv[])
 {
 	unsigned int numIterations = DEFAULT_NUM_ITERATIONS;
@@ -526,13 +305,33 @@ int main(int argc, char *argv[])
 	// Initialise the device
 	initDevice(device);
 
-	runAtomicAddTest<float, double>(numIterations, numElements, seed);
-	runAtomicAddTest<double, double>(numIterations, numElements, seed);
-	runAtomicAddTest2<double, double>(numIterations, numElements, seed);
+	// Alloc Rands.
+	float *d_inputData = NULL;
+	CUDA_CALL(cudaMalloc((void**)&d_inputData, numElements * sizeof(float)));
 
-	//runAtomicAddTest<int, float>(numIterations, numElements, seed);
-	//runAtomicAddTest<long long int, float>(numIterations, numElements, seed);
+	// Alloc accumulator as double
+	void *h_accumulator = (void *)malloc(sizeof(double));
+	void *d_accumulator = NULL;
+	CUDA_CALL(cudaMalloc((void**)&d_accumulator, numElements * sizeof(double)));
+	
+	// Generate rands
+	generateInputData(numElements, seed, d_inputData);
 
+	test<float>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData, true);
+	test<double>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData, true);
+
+	//test<float>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData, false);
+	test<double>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData, false);
+
+
+	// Free arrays.
+	CUDA_CALL(cudaFree(d_inputData));
+	CUDA_CALL(cudaFree(d_accumulator));
+	free(h_accumulator);
+
+
+	// Reset the device.
+	CUDA_CALL(cudaDeviceReset());
 
     return 0;
 }
