@@ -238,6 +238,7 @@ void initDevice(unsigned int device){
 	}			
 }
 
+//@todo - change intrinsic to compile time value (Partial template?)
 template <typename T>
 void test(unsigned int numIterations, unsigned int numElements, unsigned long long int seed, T *h_accumulator, T *d_accumulator, float *d_inputData, bool intrinsic){
 	
