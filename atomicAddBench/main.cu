@@ -90,7 +90,7 @@ __global__ void atomicAdd_intrinsic(unsigned int numIterations, unsigned int num
 
 	if(tid < numInputs){
 		for (int iteration = 0; iteration < numIterations; iteration++){
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 600 && CUDA_VERSION >= 8000
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 600 && __CUDACC_VER_MAJOR__ >= 8
 			atomicAdd(d_accumulator, d_inputData[tid]);
 #endif 
 		}
@@ -229,7 +229,6 @@ void initDevice(unsigned int device, int *major, int *minor){
 				fprintf(stdout, "Device: %s\n  pci %d bus %d\n  tcc %d\n  SM %d%d\n\n", props.name, props.pciDeviceID, props.pciBusID, props.tccDriver, props.major, props.minor);
 				(*major) = props.major;
 				(*minor) = props.minor;
-
 			}
 		}
 		else {
@@ -330,8 +329,8 @@ int main(int argc, char *argv[])
 
 	// Test float intrinsic
 	test<float, true>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
-	
-#if CUDA_VERSION >= 8000
+
+#if __CUDACC_VER_MAJOR__ >= 8
 	if (major >= 6){
 		// Test double intrinsic if possible
 		test<double, true>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
