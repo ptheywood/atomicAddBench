@@ -240,8 +240,8 @@ void initDevice(unsigned int device){
 
 // @todo - change intrinsic to compile time value (Partial template?)
 // @todo - repeat and average the time taken.
-template <typename T>
-void test(unsigned int numIterations, unsigned int numElements, unsigned long long int seed, T *h_accumulator, T *d_accumulator, float *d_inputData, bool intrinsic){
+template <typename T, bool intrinsic>
+void test(unsigned int numIterations, unsigned int numElements, unsigned long long int seed, T *h_accumulator, T *d_accumulator, float *d_inputData){
 	
 	// Reset accumulator.
 	(*h_accumulator) = (T)0.0;
@@ -319,11 +319,11 @@ int main(int argc, char *argv[])
 	// Generate rands
 	generateInputData(numElements, seed, d_inputData);
 
-	test<float>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData, true);
-	test<double>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData, true);
+	test<float, true>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
+	test<double, true>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
 
-	//test<float>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData, false);
-	test<double>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData, false);
+	//test<float, false>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
+	test<double, false>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
 
 
 	// Free arrays.
