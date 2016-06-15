@@ -141,9 +141,6 @@ void generateInputData(unsigned int numInputs, unsigned long long int seed, floa
 void fprintAccumulatorTotal(FILE* f, int v){
 	fprintf(f, "%d\n", v);
 }
-void fprintAccumulatorTotal(FILE* f, long long int v){
-	fprintf(f, "%ll\n", v);
-}
 void fprintAccumulatorTotal(FILE* f, unsigned int v){
 	fprintf(f, "%u\n", v);
 }
