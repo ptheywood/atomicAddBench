@@ -11,6 +11,7 @@
 #define VERBOSE 0
 #define INTEGER_SCALE_FACTOR 100
 
+#define DEFAULT_NUM_REPEATS 1
 #define DEFAULT_NUM_ITERATIONS 1
 #define DEFAULT_NUM_ELEMENTS 128
 #define DEFAULT_SEED 0
@@ -23,11 +24,12 @@
 #endif
 
 #define MIN_ARGS 1
-#define MAX_ARGS 5
-#define ARG_ITERATIONS 1
-#define ARG_ELEMENTS 2
-#define ARG_SEED 3
-#define ARG_DEVICE 4
+#define MAX_ARGS 6
+#define ARG_REPEATS 1
+#define ARG_ITERATIONS 2
+#define ARG_ELEMENTS 3
+#define ARG_SEED 4
+#define ARG_DEVICE 5
 
 static void HandleError(const char *file, int line, cudaError_t status = cudaGetLastError()) {
 	if (status != cudaSuccess || (status = cudaGetLastError()) != cudaSuccess)
@@ -137,27 +139,28 @@ void generateInputData(unsigned int numInputs, unsigned long long int seed, floa
 }
 
 void fprintAccumulatorTotal(FILE* f, int v){
-	fprintf(f, "Accumulator: %d\n", v);
+	fprintf(f, "%d\n", v);
 }
 void fprintAccumulatorTotal(FILE* f, long long int v){
-	fprintf(f, "Accumulator: %ll\n", v);
+	fprintf(f, "%ll\n", v);
 }
 void fprintAccumulatorTotal(FILE* f, unsigned int v){
-	fprintf(f, "Accumulator: %u\n", v);
+	fprintf(f, "%u\n", v);
 }
 void fprintAccumulatorTotal(FILE* f, unsigned long long int v){
-	fprintf(f, "Accumulator: %llu\n", v);
+	fprintf(f, "%llu\n", v);
 }
 void fprintAccumulatorTotal(FILE* f, float v){
-	fprintf(f, "Accumulator: %f\n", v);
+	fprintf(f, "%f\n", v);
 }
 void fprintAccumulatorTotal(FILE* f, double v){
-	fprintf(f, "Accumulator: %f\n", v);
+	fprintf(f, "%f\n", v);
 }
 
 void checkUsage(
 	int argc,
 	char *argv[],
+	unsigned int *numRepeats,
 	unsigned int *numIterations,
 	unsigned int *numElements,
 	unsigned long long int *seed,
@@ -179,6 +182,8 @@ void checkUsage(
 
 		// If there are more than 1 arg (the filename)5
 		if(argc > MIN_ARGS){
+			// Extract the number of repeats
+			(*numRepeats) = (unsigned int) atoi(argv[ARG_REPEATS]);
 			// Extract the number of iterations
 			(*numIterations) = (unsigned int) atoi(argv[ARG_ITERATIONS]);
 			// Extract the number of elements
@@ -192,10 +197,10 @@ void checkUsage(
 
 		}
 
+		printf("repeats:    %u\n", (*numRepeats));
 		printf("iterations: %u\n", (*numIterations));
 		printf("threads:    %u\n", (*numElements));
 		printf("seed:       %llu\n", (*seed));
-
 
 }
 
@@ -247,62 +252,79 @@ void initDevice(unsigned int device, int *major, int *minor){
 // @todo - change intrinsic to compile time value (Partial template?)
 // @todo - repeat and average the time taken.
 template <typename T, bool intrinsic>
-void test(unsigned int numIterations, unsigned int numElements, unsigned long long int seed, T *h_accumulator, T *d_accumulator, float *d_inputData){
-	
-	// Reset accumulator.
-	(*h_accumulator) = (T)0.0;
-	CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(T), cudaMemcpyHostToDevice));
-
-	// Create timing elements
-	cudaEvent_t start, stop;
-	float milliseconds = 0;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-
-	// Get pointer to kernel
-
-	void(*kernel)(unsigned int, unsigned int, float*, T*);
+void test(unsigned int numRepeats, unsigned int numIterations, unsigned int numElements, unsigned long long int seed, T *h_accumulator, T *d_accumulator, float *d_inputData){
 	
 	if (intrinsic){
-		kernel = atomicAdd_intrinsic;
+		fprintf(stdout, "%s intrinsic \n", typeid(*h_accumulator).name());
 	}
 	else {
-		kernel = atomicAdd_cas;
+		fprintf(stdout, "%s atomicCAS \n", typeid(*h_accumulator).name());
 	}
-	
-	// Compute launch args and launch kernel
-	int blockSize, minGridSize, gridSize;
-	CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numElements));
-	gridSize = (numElements + blockSize - 1) / blockSize;
 
-	// Accumulate values via kernel.
+	float milliTotal = 0.0f;
+	for (unsigned int repeat = 0; repeat < numRepeats; repeat++){
+		// Reset accumulator.
+		(*h_accumulator) = (T)0.0;
+		CUDA_CALL(cudaMemcpy(d_accumulator, h_accumulator, 1 * sizeof(T), cudaMemcpyHostToDevice));
 
-	CUDA_CALL(cudaEventRecord(start));
-	kernel << <gridSize, blockSize >> >(numIterations, numElements, d_inputData, d_accumulator);
-	CUDA_CHECK();
-	cudaDeviceSynchronize();
-	CUDA_CALL(cudaEventRecord(stop));
+		// Create timing elements
+		cudaEvent_t start, stop;
+		float milliseconds = 0;
+		cudaEventCreate(&start);
+		cudaEventCreate(&stop);
 
-	// Output timing 
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&milliseconds, start, stop);
+		// Get pointer to kernel
 
-	// Copy out results
-	CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
-	if (intrinsic){
-		fprintf(stdout, "%s intrinsic %fms ", typeid(*h_accumulator).name(), milliseconds);
+		void(*kernel)(unsigned int, unsigned int, float*, T*);
+
+		if (intrinsic){
+			kernel = atomicAdd_intrinsic;
+		}
+		else {
+			kernel = atomicAdd_cas;
+		}
+
+		// Compute launch args and launch kernel
+		int blockSize, minGridSize, gridSize;
+		CUDA_CALL(cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, kernel, 0, numElements));
+		gridSize = (numElements + blockSize - 1) / blockSize;
+
+		// Accumulate values via kernel.
+
+		CUDA_CALL(cudaEventRecord(start));
+		kernel << <gridSize, blockSize >> >(numIterations, numElements, d_inputData, d_accumulator);
+		CUDA_CHECK();
+		cudaDeviceSynchronize();
+		CUDA_CALL(cudaEventRecord(stop));
+
+		// Output timing 
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&milliseconds, start, stop);
+
+		// Copy out results
+		CUDA_CALL(cudaMemcpy(h_accumulator, d_accumulator, 1 * sizeof(T), cudaMemcpyDeviceToHost));
+
+#if defined(VERBOSE) && VERBOSE > 0
+		fprintf(stdout, "  > time %fms value ", milliseconds);
+		fprintAccumulatorTotal(stdout, h_accumulator[0]);
+#endif
+		fflush(stdout);
+		milliTotal += milliseconds;
 	}
-	else {
-		fprintf(stdout, "%s atomicCAS %fms ", typeid(*h_accumulator).name(), milliseconds);
 
-	}
+	float milliAverage = milliTotal / numRepeats;
+
+
+	fprintf(stdout, "  Value: ");
 	fprintAccumulatorTotal(stdout, h_accumulator[0]);
+	fprintf(stdout, "  Total  : %fms\n", milliTotal);
+	fprintf(stdout, "  Average: %fms\n\n", milliAverage);
 	fflush(stdout);
-
 }
 
 int main(int argc, char *argv[])
 {
+	unsigned int numRepeats = DEFAULT_NUM_REPEATS;
 	unsigned int numIterations = DEFAULT_NUM_ITERATIONS;
 	unsigned int numElements = DEFAULT_NUM_ELEMENTS;
 	unsigned long long int seed = DEFAULT_SEED;
@@ -310,7 +332,7 @@ int main(int argc, char *argv[])
 	int major = 0;
 	int minor = 0;
 
-	checkUsage(argc, argv, &numIterations, &numElements, &seed, &device);
+	checkUsage(argc, argv, &numRepeats, &numIterations, &numElements, &seed, &device);
 
 	// Initialise the device
 	initDevice(device, &major, &minor);
@@ -328,22 +350,22 @@ int main(int argc, char *argv[])
 	generateInputData(numElements, seed, d_inputData);
 
 	// Test float intrinsic
-	test<float, true>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
+	test<float, true>(numRepeats, numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
 
 #if __CUDACC_VER_MAJOR__ >= 8
 	if (major >= 6){
 		// Test double intrinsic if possible
-		test<double, true>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
+		test<double, true>(numRepeats, numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
 	}
 	else {
-		printf("double intrinsic not available SM %d.%d\n", major, minor);
+		printf("double intrinsic not available SM %d.%d\n\n", major, minor);
 	}
 #endif
 
-	//test<float, false>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
+	//test<float, false>(numRepeats, numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
 
 	// Test double atomicCAS.
-	test<double, false>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
+	test<double, false>(numRepeats, numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
 
 
 	// Free arrays.
