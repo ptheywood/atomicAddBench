@@ -84,15 +84,19 @@ __global__ void atomicAdd_intrinsic(unsigned int numIterations, unsigned int num
 	}
 }
 
+
 __global__ void atomicAdd_intrinsic(unsigned int numIterations, unsigned int numInputs, float * d_inputData, double * d_accumulator){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
 
 	if(tid < numInputs){
 		for (int iteration = 0; iteration < numIterations; iteration++){
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 600 && CUDA_VERSION >= 8000
 			atomicAdd(d_accumulator, d_inputData[tid]);
+#endif 
 		}
 	}
 }
+
 
 __global__ void atomicAdd_cas(unsigned int numIterations, unsigned int numInputs, float * d_inputData, float * d_accumulator){
 	unsigned int tid = threadIdx.x + (blockDim.x * blockIdx.x);
@@ -195,7 +199,7 @@ void checkUsage(
 
 }
 
-void initDevice(unsigned int device){
+void initDevice(unsigned int device, int *major, int *minor){
 	int deviceCount = 0;
 	cudaError_t status;
 	// Get the number of cuda device.
@@ -208,7 +212,7 @@ void initDevice(unsigned int device){
 	// If there are any devices
 	if (deviceCount > 0){
 		// Ensure the device count is not bad.
-		if (device >= deviceCount){
+		if (device >= (unsigned int)deviceCount){
 			device = DEFAULT_DEVICE;
 			fprintf(stdout, "Warning: device %d is invalid, using device %d\n", device, DEFAULT_DEVICE);
 			fflush(stdout);
@@ -222,7 +226,10 @@ void initDevice(unsigned int device){
 			status = cudaGetDeviceProperties(&props, device);
 			// If we have properties, print the device.
 			if (status == cudaSuccess){
-				fprintf(stdout, "Device: %s\n  pci %d\n  bus %d\n  tcc %d\n", props.name, props.pciDeviceID, props.pciBusID, props.tccDriver);
+				fprintf(stdout, "Device: %s\n  pci %d bus %d\n  tcc %d\n  SM %d%d\n\n", props.name, props.pciDeviceID, props.pciBusID, props.tccDriver, props.major, props.minor);
+				(*major) = props.major;
+				(*minor) = props.minor;
+
 			}
 		}
 		else {
@@ -301,12 +308,14 @@ int main(int argc, char *argv[])
 	unsigned int numElements = DEFAULT_NUM_ELEMENTS;
 	unsigned long long int seed = DEFAULT_SEED;
 	unsigned int device = DEFAULT_DEVICE;
+	int major = 0;
+	int minor = 0;
 
 	checkUsage(argc, argv, &numIterations, &numElements, &seed, &device);
 
 	// Initialise the device
-	initDevice(device);
-
+	initDevice(device, &major, &minor);
+ 
 	// Alloc Rands.
 	float *d_inputData = NULL;
 	CUDA_CALL(cudaMalloc((void**)&d_inputData, numElements * sizeof(float)));
@@ -319,10 +328,22 @@ int main(int argc, char *argv[])
 	// Generate rands
 	generateInputData(numElements, seed, d_inputData);
 
+	// Test float intrinsic
 	test<float, true>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
-	test<double, true>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
+	
+#if CUDA_VERSION >= 8000
+	if (major >= 6){
+		// Test double intrinsic if possible
+		test<double, true>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
+	}
+	else {
+		printf("double intrinsic not available SM %d.%d\n", major, minor);
+	}
+#endif
 
 	//test<float, false>(numIterations, numElements, seed, reinterpret_cast<float*>(h_accumulator), reinterpret_cast<float*>(d_accumulator), d_inputData);
+
+	// Test double atomicCAS.
 	test<double, false>(numIterations, numElements, seed, reinterpret_cast<double*>(h_accumulator), reinterpret_cast<double*>(d_accumulator), d_inputData);
 
 
