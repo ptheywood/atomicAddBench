@@ -5,8 +5,9 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 
 ## Benchmarks
 
+### Windows
 
-### GTX 1080
+#### GTX 1080
 
     $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 0
     repeats:    4
@@ -35,11 +36,11 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 
 
 + Windows 8.1 x64
-+ Geforce Driver 368.39 WDDM
++ Driver 368.39 WDDM
 + CUDA 8.0RC, SM_61
 + *NOTE* - Performance on Windows 8.1 seems low for 1080 with CUDA 8.0RC, being investigated
 
-### GTX Titan X
+#### GTX Titan X
 
     $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 1
     repeats:    4
@@ -65,10 +66,10 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 
 
 + Windows 8.1 x64
-+ Geforce Driver 368.39 WDDM
-+ CUDA 8.0RC, SM_61
++ Driver 368.39 WDDM
++ CUDA 8.0RC, SM_52
 
-### GTX 1070 (@todo - Update)
+#### GTX 1070 (@todo - Update)
 
     $ ./Release/atomicAddBench.exe 16 65536 0 0
     iterations: 16
@@ -84,5 +85,69 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
     double  atomicCAS 3194.879883ms Accumulator: 522496.976176
 
 + Windows 10 x64
-+ Geforce Driver 368.39 WDDM
++ Driver 368.39 WDDM
 + CUDA 8.0RC, SM_61
+
+### Ubuntu 14.04
+
+#### GTX 1080
+
+    ./x64/Release/atomicAddBench 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: GeForce GTX 1080
+      pci 0 bus 1
+      tcc 0
+      SM 61
+
+    f intrinsic 
+      Value: 522449.375000
+      Total  : 8.057217ms
+      Average: 2.014304ms
+
+    d intrinsic 
+      Value: 522496.976176
+      Total  : 8.052192ms
+      Average: 2.013048ms
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 19113.062500ms
+      Average: 4778.265625ms
+
+
++ Ubuntu 14.04
++ Driver 367.27
++ CUDA 8.0RC, SM_61
+
+#### GTX Titan X
+
+    ./x64/Release/atomicAddBench 4 16 65536 0 1
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: GeForce GTX TITAN X
+      pci 0 bus 2
+      tcc 0
+      SM 52
+
+    f intrinsic 
+      Value: 522453.718750
+      Total  : 14.321280ms
+      Average: 3.580320ms
+
+    double intrinsic not available SM 5.2
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 34452.035156ms
+      Average: 8613.008789ms
+
+
+
++ Ubuntu 14.04
++ Driver 367.27
++ CUDA 8.0RC, SM_52
