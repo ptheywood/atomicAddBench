@@ -101,6 +101,41 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Driver 368.39 WDDM
 + CUDA 8.0RC, SM_61
 
+
+### Ubuntu 16.04.01
+
+#### GTX 1070
+
+    ./x64/Release/atomicAddBench 4 16 65536 0 0 
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: GeForce GTX 1070
+      pci 0 bus 1
+      tcc 0
+      SM 61
+
+    f intrinsic 
+      Value: 522445.718750
+      Total  : 8.854655ms
+      Average: 2.213664ms
+
+    d intrinsic 
+      Value: 522496.976176
+      Total  : 9.449568ms
+      Average: 2.362392ms
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 16590.242188ms
+      Average: 4147.560547ms
+
++ Ubuntu 16.04.1
++ Driver 367.27
++ CUDA 8.0RC, SM_61
++ GCC 4.9
+
 ### Ubuntu 14.04
 
 #### GTX 1080
