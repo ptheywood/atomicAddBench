@@ -40,7 +40,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + CUDA 8.0RC, SM_61
 + *NOTE* - Performance on Windows 8.1 seems low for 1080 with CUDA 8.0RC, being investigated
 
-#### GTX Titan X
+#### GTX Titan X (Maxwell)
 
     $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 1
     repeats:    4
@@ -136,6 +136,68 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + CUDA 8.0RC, SM_61
 + GCC 4.9
 
+#### GTX 1080
+
+    ./x64/Release/atomicAddBench 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: GeForce GTX 1080
+      pci 0 bus 1
+      tcc 0
+      SM 61
+
+    f intrinsic 
+      Value: 522448.375000
+      Total  : 8.056353ms
+      Average: 2.014088ms
+
+    d intrinsic 
+      Value: 522496.976176
+      Total  : 8.643200ms
+      Average: 2.160800ms
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 18750.568359ms
+      Average: 4687.642090ms
+
++ Ubuntu 16.04.1
++ Driver 367.27
++ CUDA 8.0RC, SM_61
++ GCC 4.9
+
+#### GTX Titan X (Maxwell)
+    
+    ./x64/Release/atomicAddBench 4 16 65536 0 1
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: GeForce GTX TITAN X
+      pci 0 bus 2
+      tcc 0
+      SM 52
+
+    f intrinsic 
+      Value: 522451.000000
+      Total  : 14.333632ms
+      Average: 3.583408ms
+
+    double intrinsic not available SM 5.2
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 34460.679688ms
+      Average: 8615.169922ms
+
++ Ubuntu 16.04.1
++ Driver 367.27
++ CUDA 8.0RC, SM_52
++ GCC 4.9
+
+
 ### Ubuntu 14.04
 
 #### GTX 1080
@@ -170,7 +232,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Driver 367.27
 + CUDA 8.0RC, SM_61
 
-#### GTX Titan X
+#### GTX Titan X (Maxwell)
 
     ./x64/Release/atomicAddBench 4 16 65536 0 1
     repeats:    4
