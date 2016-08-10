@@ -168,6 +168,39 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + CUDA 8.0RC, SM_61
 + GCC 4.9
 
+#### Titan X (Pascal)
+    
+    ../x64/Release/atomicAddBench 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: TITAN X
+      pci 0 bus 2
+      tcc 0
+      SM 61
+
+    f intrinsic 
+      Value: 522462.718750
+      Total  : 9.172672ms
+      Average: 2.293168ms
+
+    d intrinsic 
+      Value: 522496.976176
+      Total  : 9.173632ms
+      Average: 2.293408ms
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 18814.171875ms
+      Average: 4703.542969ms
+
+
++ Ubuntu 16.04.1
++ Driver 367.27
++ CUDA 8.0RC, SM_52
++ GCC 4.9
+
 #### GTX Titan X (Maxwell)
     
     ./x64/Release/atomicAddBench 4 16 65536 0 1
