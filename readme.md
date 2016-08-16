@@ -7,9 +7,41 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 
 ### Windows
 
-#### GTX 1080
+#### Titan X (Pascal)
 
     $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: TITAN X (Pascal)
+      pci 0 bus 2
+      tcc 0
+      SM 61
+
+    float intrinsic
+      Value: 522464.406250
+      Total  : 9.128961ms
+      Average: 2.282240ms
+
+    double intrinsic
+      Value: 522496.976176
+      Total  : 9.133088ms
+      Average: 2.283272ms
+
+    double atomicCAS
+      Value: 522496.976176
+      Total  : 18789.156250ms
+      Average: 4697.289063ms
+
+
++ Windows 8.1 x64
++ Driver 372.54 WDDM
++ CUDA 8.0RC, SM_61
+
+#### GTX 1080
+
+    $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 1
     repeats:    4
     iterations: 16
     threads:    65536
@@ -20,25 +52,24 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
       SM 61
 
     float intrinsic
-      Value: 522451.218750
-      Total  : 13.884416ms
-      Average: 3.471104ms
+      Value: 522453.343750
+      Total  : 8.431616ms
+      Average: 2.107904ms
 
     double intrinsic
       Value: 522496.976176
-      Total  : 13.852673ms
-      Average: 3.463168ms
+      Total  : 8.443904ms
+      Average: 2.110976ms
 
     double atomicCAS
       Value: 522496.976176
-      Total  : 38954.253906ms
-      Average: 9738.563477ms
+      Total  : 18491.679688ms
+      Average: 4622.919922ms
 
 
 + Windows 8.1 x64
-+ Driver 368.39 WDDM
++ Driver 372.54 WDDM
 + CUDA 8.0RC, SM_61
-+ *NOTE* - Performance on Windows 8.1 seems low for 1080 with CUDA 8.0RC, being investigated
 
 #### GTX Titan X (Maxwell)
 
