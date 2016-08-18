@@ -5,7 +5,109 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 
 ## Benchmarks
 
-### Windows
+
+### Windows 10
+
+#### Titan X (Pascal) WDDM
+
+    $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: TITAN X (Pascal)
+      pci 0 bus 2
+      tcc 0
+      SM 61
+
+    float intrinsic
+      Value: 522494.343750
+      Total  : 0.412672ms
+      Average: 0.103168ms
+
+    double intrinsic
+      Value: 522496.976176
+      Total  : 9.146336ms
+      Average: 2.286584ms
+
+    double atomicCAS
+      Value: 522496.976176
+      Total  : 18571.289063ms
+      Average: 4642.822266ms
+
+
+
++ Windows 10 x64
++ Driver 372.54 WDDM
++ CUDA 8.0RC, SM_61
++ `make.sh`
+
+#### GTX 1080
+
+  $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 1
+  repeats:    4
+  iterations: 16
+  threads:    65536
+  seed:       0
+  Device: GeForce GTX 1080
+    pci 0 bus 1
+    tcc 0
+    SM 61
+
+  float intrinsic
+    Value: 522494.093750
+    Total  : 0.479232ms
+    Average: 0.119808ms
+
+  double intrinsic
+    Value: 522496.976176
+    Total  : 8.552448ms
+    Average: 2.138112ms
+
+  double atomicCAS
+    Value: 522496.976176
+    Total  : 11832.431641ms
+    Average: 2958.107910ms
+
++ Windows 10 x64
++ Driver 372.54 WDDM
++ CUDA 8.0RC, SM_61
++ `make.sh`
+
+
+#### GTX 1070
+
+    $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: GeForce GTX 1070
+      pci 0 bus 1
+      tcc 0
+      SM 61
+
+    float intrinsic
+      Value: 522445.593750
+      Total  : 8.932384ms
+      Average: 2.233096ms
+
+    double intrinsic
+      Value: 522496.976176
+      Total  : 8.949760ms
+      Average: 2.237440ms
+
+    double atomicCAS
+      Value: 522496.976176
+      Total  : 14708.046875ms
+      Average: 3677.011719ms
+
+
++ Windows 10 x64
++ Driver 368.39 WDDM
++ CUDA 8.0RC, SM_61
+
+### Windows 8
 
 #### Titan X (Pascal)
 
@@ -38,6 +140,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Windows 8.1 x64
 + Driver 372.54 WDDM
 + CUDA 8.0RC, SM_61
++ MSVC
 
 #### GTX 1080
 
@@ -70,6 +173,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Windows 8.1 x64
 + Driver 372.54 WDDM
 + CUDA 8.0RC, SM_61
++ MSVC
 
 #### GTX Titan X (Maxwell)
 
@@ -99,39 +203,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Windows 8.1 x64
 + Driver 368.39 WDDM
 + CUDA 8.0RC, SM_52
-
-#### GTX 1070 
-
-    $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 0
-    repeats:    4
-    iterations: 16
-    threads:    65536
-    seed:       0
-    Device: GeForce GTX 1070
-      pci 0 bus 1
-      tcc 0
-      SM 61
-
-    float intrinsic
-      Value: 522445.593750
-      Total  : 8.932384ms
-      Average: 2.233096ms
-
-    double intrinsic
-      Value: 522496.976176
-      Total  : 8.949760ms
-      Average: 2.237440ms
-
-    double atomicCAS
-      Value: 522496.976176
-      Total  : 14708.046875ms
-      Average: 3677.011719ms
-
-
-+ Windows 10 x64
-+ Driver 368.39 WDDM
-+ CUDA 8.0RC, SM_61
-
++ MSVC
 
 ### Ubuntu 16.04.01
 
@@ -166,6 +238,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Driver 367.27
 + CUDA 8.0RC, SM_61
 + GCC 4.9
++ make.sh
 
 #### GTX 1080
 
@@ -198,6 +271,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Driver 367.27
 + CUDA 8.0RC, SM_61
 + GCC 4.9
++ make.sh
 
 #### Titan X (Pascal)
     
@@ -226,11 +300,11 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
       Total  : 18814.171875ms
       Average: 4703.542969ms
 
-
 + Ubuntu 16.04.1
 + Driver 367.27
 + CUDA 8.0RC, SM_52
 + GCC 4.9
++ make.sh
 
 #### GTX Titan X (Maxwell)
     
@@ -260,6 +334,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Driver 367.27
 + CUDA 8.0RC, SM_52
 + GCC 4.9
++ make.sh
 
 
 ### Ubuntu 14.04
@@ -295,6 +370,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
 + Ubuntu 14.04
 + Driver 367.27
 + CUDA 8.0RC, SM_61
++ make.sh
 
 #### GTX Titan X (Maxwell)
 
@@ -320,8 +396,7 @@ Micro-benchmark to compare CUDA `atomicAdd()` performance for a range of data ty
       Total  : 34452.035156ms
       Average: 8613.008789ms
 
-
-
 + Ubuntu 14.04
 + Driver 367.27
 + CUDA 8.0RC, SM_52
++ make.sh
