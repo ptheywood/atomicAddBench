@@ -26,14 +26,15 @@ i.e. `./x64/Release/atomicAddBench.exe 4 16 65536 0 0`
 | ----------------  | ------- | ------------ | -------------- | -------------- | -------------- |
 | TITAN X (Pascal)  |  372.54 | make.sh      |    0.103168 ms |    2.286584 ms | 4642.822266 ms |
 | GTX 1080          |  372.54 | make.sh      |    0.119808 ms |    2.138112 ms | 2958.107910 ms |
-| GTX 1070          |  372.54 | MSVC         |    2.233096 ms |    2.237440 ms | 3677.011719 ms |
+| GTX 1070          |  372.54 | make.sh      |    0.094456 ms |    2.297856 ms | 3619.317871 ms |
+| GTX 1070          |  372.54 | MSVS         |    2.233096 ms |    2.237440 ms | 3677.011719 ms |
 
 ### Windows 8
 | Device            | Driver  | Build System | FP32 atomicAdd | FP64 atomicAdd | FP64 atomicCAS |
 | ----------------  | ------- | ------------ | -------------- | -------------- | -------------- |
-| TITAN X (Pascal)  |  372.54 | MSVC         |    2.282240 ms |    2.283272 ms | 4697.289063 ms |
-| GTX 1080          |  372.54 | MSVC         |    2.107904 ms |    2.110976 ms | 4622.919922 ms |
-| Titan X (Maxwell) |  368.39 | MSVC         |    3.615920 ms |            N/A | 8794.115234 ms |
+| TITAN X (Pascal)  |  372.54 | MSVS         |    2.282240 ms |    2.283272 ms | 4697.289063 ms |
+| GTX 1080          |  372.54 | MSVS         |    2.107904 ms |    2.110976 ms | 4622.919922 ms |
+| Titan X (Maxwell) |  368.39 | MSVS         |    3.615920 ms |            N/A | 8794.115234 ms |
 
 ### Ubuntu 16.04.01
 | Device            | Driver  | Build System | FP32 atomicAdd | FP64 atomicAdd | FP64 atomicCAS |

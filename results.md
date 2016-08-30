@@ -73,7 +73,7 @@ Below are the raw output of the results for the machines in use, including detai
 
 ### GTX 1070
 
-    $ ./x64/Release/atomicAddBench.exe 4 16 65536 0 0
+    $ ./x64/release/atomicAddBench.exe 4 16 65536 0 0
     repeats:    4
     iterations: 16
     threads:    65536
@@ -84,23 +84,24 @@ Below are the raw output of the results for the machines in use, including detai
       SM 61
 
     float intrinsic
-      Value: 522445.593750
-      Total  : 8.932384ms
-      Average: 2.233096ms
+      Value: 522492.281250
+      Total  : 0.377824ms
+      Average: 0.094456ms
 
     double intrinsic
       Value: 522496.976176
-      Total  : 8.949760ms
-      Average: 2.237440ms
+      Total  : 9.191424ms
+      Average: 2.297856ms
 
     double atomicCAS
       Value: 522496.976176
-      Total  : 14708.046875ms
-      Average: 3677.011719ms
+      Total  : 14477.271484ms
+      Average: 3619.317871ms
+
 
 
 + Windows 10 x64
-+ Driver 368.39 WDDM
++ Driver 372.70 WDDM
 + CUDA 8.0RC, SM_61
 
 ## Windows 8
