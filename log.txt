@@ -1,0 +1,95 @@
+Wed Aug 16 14:12:10 2017       
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 375.66                 Driver Version: 375.66                    |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  Tesla P100-SXM2...  Off  | 0000:06:00.0     Off |                    0 |
+| N/A   45C    P0    44W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   1  Tesla P100-SXM2...  Off  | 0000:07:00.0     Off |                    0 |
+| N/A   42C    P0    46W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   2  Tesla P100-SXM2...  Off  | 0000:0A:00.0     Off |                    0 |
+| N/A   42C    P0    44W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   3  Tesla P100-SXM2...  Off  | 0000:0B:00.0     Off |                    0 |
+| N/A   36C    P0    41W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   4  Tesla P100-SXM2...  Off  | 0000:85:00.0     Off |                    0 |
+| N/A   40C    P0    42W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   5  Tesla P100-SXM2...  Off  | 0000:86:00.0     Off |                    0 |
+| N/A   43C    P0    46W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   6  Tesla P100-SXM2...  Off  | 0000:89:00.0     Off |                    0 |
+| N/A   44C    P0    42W / 300W |      0MiB / 16276MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+|   7  Tesla P100-SXM2...  Off  | 0000:8A:00.0     Off |                    0 |
+| N/A   43C    P0    33W / 300W |      0MiB / 16276MiB |      2%      Default |
++-------------------------------+----------------------+----------------------+
+                                                                               
++-----------------------------------------------------------------------------+
+| Processes:                                                       GPU Memory |
+|  GPU       PID  Type  Process name                               Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
+0
+~/atomicAddBench ~/atomicAddBench
+/var/spool/sge/sharc-node126/job_scripts/553831: line 16: ./atomicAddBench: Is a directory
+==25619== NVPROF is profiling process 25619, command: ./x64/Release/atomicAddBench 4 16 65536 0 0
+repeats:    4
+iterations: 16
+threads:    65536
+seed:       0
+Device: Tesla P100-SXM2-16GB
+  pci 0 bus 6
+  tcc 0
+  SM 60
+
+f intrinsic 
+  Value: 522494.000000
+  Total  : 0.495968ms
+  Average: 0.123992ms
+
+d intrinsic 
+  Value: 0.000000
+  Total  : 0.161728ms
+  Average: 0.040432ms
+
+d atomicCAS 
+  Value: 522496.976176
+  Total  : 29226.455078ms
+  Average: 7306.613770ms
+
+==25619== Generated result file: /home/acp14pth/atomicAddBench/atomicAddBench-home.nvvp
+==25708== NVPROF is profiling process 25708, command: ./x64/Release/atomicAddBench 4 16 65536 0 0
+repeats:    4
+iterations: 16
+threads:    65536
+seed:       0
+Device: Tesla P100-SXM2-16GB
+  pci 0 bus 6
+  tcc 0
+  SM 60
+
+f intrinsic 
+  Value: 522493.968750
+  Total  : 0.401536ms
+  Average: 0.100384ms
+
+d intrinsic 
+  Value: 0.000000
+  Total  : 0.081536ms
+  Average: 0.020384ms
+
+d atomicCAS 
+  Value: 522496.976176
+  Total  : 29176.378906ms
+  Average: 7294.094727ms
+
+==25708== Generated result file: /data/acp14pth/atomicAddBench/atomicAddBench-data.nvvp
+==25792== NVPROF is profiling process 25792, command: ./x64/Release/atomicAddBench 4 16 65536 0 0
+==25792== Error: Cannot create profiling file: /fastdata/acp14pth/atomicAddBench/atomicAddBench-fastdata.nvvp
