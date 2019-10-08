@@ -202,6 +202,117 @@ Below are the raw output of the results for the machines in use, including detai
 + CUDA 8.0RC, SM_52
 + MSVC
 
+## CentOS Linux release 7.6.1810 (Core) 
+
+### Tesla P100
+
+
++ CentOS 7
++ Driver 410.104
++ CUDA 10.0
++ make.sh
+
+### Tesla K80
+
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: Tesla K80
+      pci 0 bus 11
+      tcc 0
+      SM 37
+
+    f intrinsic 
+      Value: 522442.781250
+      Total  : 15.058272ms
+      Average: 3.764568ms
+
+    double intrinsic not available SM 3.7
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 71973.437500ms
+      Average: 17993.359375ms
+
+
+
++ CentOS 7
++ Driver 410.104
++ CUDA 10.0
++ make.sh
+
+
+## Ubuntu 18.04
+
+### Titan V
+
+    ./x64/Release/atomicAddBench 4 16 65536 0 0
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: TITAN V
+      pci 0 bus 9
+      tcc 0
+      SM 70
+
+    f intrinsic 
+      Value: 522478.750000
+      Total  : 11.102208ms
+      Average: 2.775552ms
+
+    d intrinsic 
+      Value: 522496.976176
+      Total  : 11.110399ms
+      Average: 2.777600ms
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 30818.791016ms
+      Average: 7704.697754ms
+
++ Ubuntu 18.04
++ Driver 418.40
++ CUDA 10.0
++ GCC 7.3
++ make.sh
+
+### Titan X (Pascal)
+
+    ./x64/Release/atomicAddBench 4 16 65536 0 1
+    repeats:    4
+    iterations: 16
+    threads:    65536
+    seed:       0
+    Device: TITAN X (Pascal)
+      pci 0 bus 65
+      tcc 0
+      SM 61
+
+    f intrinsic 
+      Value: 522466.781250
+      Total  : 8.429696ms
+      Average: 2.107424ms
+
+    d intrinsic 
+      Value: 522496.976176
+      Total  : 9.260097ms
+      Average: 2.315024ms
+
+    d atomicCAS 
+      Value: 522496.976176
+      Total  : 20310.998047ms
+      Average: 5077.749512ms
+
+
++ Ubuntu 18.04
++ Driver 418.40
++ CUDA 10.0
++ GCC 7.3
++ make.sh
+
+
 ## Ubuntu 16.04.01
 
 ### GTX 1070
