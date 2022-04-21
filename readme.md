@@ -45,6 +45,7 @@ i.e. `./x64/Release/atomicAddBench.exe 4 16 65536 0 0`
 | Titan X (Maxwell) | 367.27  | make.sh      |    3.583408 ms |    2.777600 ms |  7704.697754 ms |
 | TITAN X (Pascal)  | 418.40  | make.sh      |    2.107424 ms |    2.315024 ms |  5077.749512 ms |
 | Titan V           | 418.40  | make.sh      |    2.775552 ms |    2.777600 ms |  7704.697754 ms |
+| A100-SXM4-80GB    | 510.47 (11.4) | make.sh|    2.600448 ms |    2.600192 ms |  7502.596191 ms |
 | Tesla V100 PCIE 32| 418.67  | make.sh      |    2.731520 ms |    2.725120 ms |  9538.770508 ms |
 | Tesla P100        | 418.40  | make.sh      |    2.203728 ms |    2.201264 ms |  7350.522949 ms |
 | Tesla K80         | 410.104 | make.sh      |    3.764568 ms |            N/A | 17993.359375 ms |
